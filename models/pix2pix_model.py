@@ -17,13 +17,13 @@ import torch
 import torch.nn as nn
 import torch.autograd as autograd
 import os
-from models import base_model
-from models import networks
+from . import base_model
+from . import networks
 import sys
 import h5py
 import os.path
 from skimage.io import imsave
-from models import hourglass
+from . import hourglass
 
 import torchvision.utils as vutils
 
@@ -79,15 +79,15 @@ class Pix2PixModel(base_model.BaseModel):
             raise ValueError("Unknown input type %s" % opt.input)
 
         if self.mode == 'Ours_Bilinear':
-            print(
-                '======================================  DIW NETWORK TRAIN FROM %s======================='
-                % self.mode)
+            # print(
+            #     '======================================  DIW NETWORK TRAIN FROM %s======================='
+            #     % self.mode)
 
             new_model = hourglass.HourglassModel(self.num_input)
 
-            print(
-                '===================Loading Pretrained Model OURS ==================================='
-            )
+            # print(
+            #     '===================Loading Pretrained Model OURS ==================================='
+            # )
 
             if not _isTrain:
                 if self.num_input == 7:
@@ -117,15 +117,14 @@ class Pix2PixModel(base_model.BaseModel):
         self.old_lr = opt.lr
         self.netG.train()
 
-        if True:
-            self.criterion_joint = networks.JointLoss(opt)
-            # initialize optimizers
-            self.optimizer_G = torch.optim.Adam(
-                self.netG.parameters(), lr=opt.lr, betas=(0.9, 0.999))
-            self.scheduler = networks.get_scheduler(self.optimizer_G, opt)
-            print('---------- Networks initialized -------------')
-            networks.print_network(self.netG)
-            print('-----------------------------------------------')
+        self.criterion_joint = networks.JointLoss(opt)
+        # initialize optimizers
+        self.optimizer_G = torch.optim.Adam(
+            self.netG.parameters(), lr=opt.lr, betas=(0.9, 0.999))
+        self.lr_scheduler = networks.get_scheduler(self.optimizer_G, opt)
+        # print('---------- Networks initialized -------------')
+        # networks.print_network(self.netG)
+        # print('-----------------------------------------------')
 
     def set_writer(self, writer):
         self.writer = writer
@@ -191,7 +190,7 @@ class Pix2PixModel(base_model.BaseModel):
             1, 3, 1, 1)
 
         invere_depth_gt = 1.0 / \
-            targets['depth_gt'].unsqueeze(1).repeat(1, 3, 1, 1)
+                          targets['depth_gt'].unsqueeze(1).repeat(1, 3, 1, 1)
         gt_mask = targets['gt_mask'].unsqueeze(1).repeat(1, 3, 1, 1)
 
         invere_depth_gt = invere_depth_gt * gt_mask
@@ -355,7 +354,7 @@ class Pix2PixModel(base_model.BaseModel):
                 input_imgs[i, :, :, :].cpu().numpy(), (1, 2, 0))
 
             output_path = youtube_dir + '/' + \
-                targets['img_1_path'][i].split('/')[-1]
+                          targets['img_1_path'][i].split('/')[-1]
 
             print('output_path', output_path)
             input_confidence = targets['input_confidence'][i]
@@ -481,7 +480,7 @@ class Pix2PixModel(base_model.BaseModel):
             human_mask_ref = human_mask.data[i, 0, :, :].cpu().numpy()
 
             output_path = youtube_dir + '/' + \
-                targets['img_1_path'][i].split('/')[-1]
+                          targets['img_1_path'][i].split('/')[-1]
             gt_depth_ref = targets['depth_gt'][i]
             gt_mask_ref = targets['gt_mask'][i]
             input_confidence_ref = targets['input_confidence'][i]
@@ -580,7 +579,7 @@ class Pix2PixModel(base_model.BaseModel):
             full_flow_ref = full_flow[i, :, :, :].data.cpu().numpy()
 
             output_path = youtube_dir + '/' + \
-                targets['img_1_path'][i].split('/')[-1]
+                          targets['img_1_path'][i].split('/')[-1]
 
             K = targets['K'][i]
             T_1_G = targets['T_1_G'][i]
@@ -636,13 +635,13 @@ class Pix2PixModel(base_model.BaseModel):
             pred_d_ref = pred_d.data[i, :, :].cpu().numpy()
 
             output_path = youtube_dir + '/' + \
-                targets['img_1_path'][i].split('/')[-1]
+                          targets['img_1_path'][i].split('/')[-1]
             print(output_path)
             disparity = 1. / pred_d_ref
             disparity = disparity / np.max(disparity)
             disparity = np.tile(np.expand_dims(disparity, axis=-1), (1, 1, 3))
             saved_imgs = np.concatenate((saved_img, disparity), axis=1)
-            saved_imgs = (saved_imgs*255).astype(np.uint8)
+            saved_imgs = (saved_imgs * 255).astype(np.uint8)
 
             imsave(output_path, saved_imgs)
 
@@ -656,6 +655,6 @@ class Pix2PixModel(base_model.BaseModel):
         self.save_network(self.netG, 'G', label, self.gpu_ids)
 
     def update_learning_rate(self):
-        self.scheduler.step()
+        self.lr_scheduler.step()
         lr = self.optimizer_G.param_groups[0]['lr']
         print('Current learning rate = %.7f' % lr)
